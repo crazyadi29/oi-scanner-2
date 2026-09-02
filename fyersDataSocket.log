@@ -1,0 +1,1 @@
+{"level":"ERROR","location":"[access_token_to_hsmtoken:272] data_ws","message":{"type":"cn","code":-99,"message":"Token is expired","s":"error"},"timestamp":"2026-08-16 21:33:34,777+0530","service":"FyersDataSocket"}
