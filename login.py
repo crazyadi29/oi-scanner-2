@@ -3,55 +3,82 @@ import pyotp
 import os
 from fyers_apiv3 import fyersModel
 
-CLIENT_ID = os.environ["FYERS_CLIENT_ID"]
-APP_ID = os.environ["FYERS_APP_ID"]
-SECRET_KEY = os.environ["FYERS_SECRET_KEY"]
-REDIRECT_URI = os.environ["FYERS_REDIRECT_URI"]
-PIN = os.environ["FYERS_PIN"]
-TOTP_KEY = os.environ["FYERS_TOTP_KEY"]
-RAILWAY_TOKEN = os.environ["RAILWAY_API_TOKEN"]
-RAILWAY_PROJECT_ID = os.environ["RAILWAY_PROJECT_ID"]
-RAILWAY_SERVICE_ID = os.environ["MY_MAIN_SERVICE_ID"]
-RAILWAY_ENV_ID = os.environ["RAILWAY_ENVIRONMENT_ID"]
+CLIENT_ID     = os.environ["FYERS_CLIENT_ID_2"]
+APP_ID        = os.environ["FYERS_APP_ID_2"]
+SECRET_KEY    = os.environ["FYERS_SECRET_KEY_2"]
+REDIRECT_URI  = os.environ["FYERS_REDIRECT_URI_2"]
+PIN           = os.environ["FYERS_PIN_2"]
+TOTP_KEY      = os.environ["FYERS_TOTP_KEY_2"]
 
-BASE_URL = "https://api-t2.fyers.in/vagator/v2"
+RAILWAY_TOKEN       = os.environ["RAILWAY_API_TOKEN"]          # same Railway account token works
+RAILWAY_PROJECT_ID  = os.environ["RAILWAY_PROJECT_ID_2"]       # new project (or same project, new service)
+RAILWAY_SERVICE_ID  = os.environ["MY_MAIN_SERVICE_ID_2"]       # bot2's service id
+RAILWAY_ENV_ID      = os.environ["RAILWAY_ENVIRONMENT_ID_2"]
+
+BASE_URL   = "https://api-t2.fyers.in/vagator/v2"
 BASE_URL_2 = "https://api-t1.fyers.in/api/v3"
 URL_SEND_LOGIN_OTP = BASE_URL + "/send_login_otp"
-URL_VERIFY_TOTP = BASE_URL + "/verify_otp"
-URL_VERIFY_PIN = BASE_URL + "/verify_pin"
-URL_TOKEN = BASE_URL_2 + "/token"
+URL_VERIFY_TOTP    = BASE_URL + "/verify_otp"
+URL_VERIFY_PIN     = BASE_URL + "/verify_pin"
+URL_TOKEN          = BASE_URL_2 + "/token"
+
 
 def auto_login():
     s = requests.Session()
     r1 = s.post(URL_SEND_LOGIN_OTP, json={"fy_id": CLIENT_ID, "app_id": "2"})
     request_key = r1.json()["request_key"]
     print("Step 1 done")
+
     totp = pyotp.TOTP(TOTP_KEY).now()
     r2 = s.post(URL_VERIFY_TOTP, json={"request_key": request_key, "otp": totp})
     request_key = r2.json()["request_key"]
     print("Step 2 done")
+
     r3 = s.post(URL_VERIFY_PIN, json={"request_key": request_key, "identity_type": "pin", "identifier": PIN})
     access_token = r3.json()["data"]["access_token"]
     print("Step 3 done")
+
     app_id_short = APP_ID.split("-")[0]
-    r4 = s.post(URL_TOKEN, json={"fyers_id": CLIENT_ID, "app_id": app_id_short, "redirect_uri": REDIRECT_URI, "appType": "100", "code_challenge": "", "state": "state", "scope": "", "nonce": "", "response_type": "code", "create_cookie": True}, headers={"Authorization": f"Bearer {access_token}"})
+    r4 = s.post(URL_TOKEN, json={
+        "fyers_id": CLIENT_ID, "app_id": app_id_short, "redirect_uri": REDIRECT_URI,
+        "appType": "100", "code_challenge": "", "state": "state", "scope": "",
+        "nonce": "", "response_type": "code", "create_cookie": True
+    }, headers={"Authorization": f"Bearer {access_token}"})
     auth_code = r4.json()["Url"].split("auth_code=")[1].split("&")[0]
     print("Step 4 done")
-    session = fyersModel.SessionModel(client_id=APP_ID, redirect_uri=REDIRECT_URI, response_type="code", state="state", secret_key=SECRET_KEY, grant_type="authorization_code")
+
+    session = fyersModel.SessionModel(
+        client_id=APP_ID, redirect_uri=REDIRECT_URI, response_type="code",
+        state="state", secret_key=SECRET_KEY, grant_type="authorization_code"
+    )
     session.set_token(auth_code)
     resp = session.generate_token()
     print(f"Token resp: {resp}")
+
     token = f"{APP_ID}:{resp['access_token']}"
     update_railway_variable(token)
 
+
 def update_railway_variable(token):
     query = """mutation upsertVariables($input: VariableCollectionUpsertInput!) { variableCollectionUpsert(input: $input) }"""
-    variables = {"input": {"projectId": RAILWAY_PROJECT_ID, "serviceId": RAILWAY_SERVICE_ID, "environmentId": RAILWAY_ENV_ID, "variables": {"FYERS_ACCESS_TOKEN": token}}}
-    r = requests.post("https://backboard.railway.app/graphql/v2", json={"query": query, "variables": variables}, headers={"Authorization": f"Bearer {RAILWAY_TOKEN}", "Content-Type": "application/json"})
+    variables = {
+        "input": {
+            "projectId":     RAILWAY_PROJECT_ID,
+            "serviceId":     RAILWAY_SERVICE_ID,
+            "environmentId": RAILWAY_ENV_ID,
+            "variables":     {"FYERS_ACCESS_TOKEN_2": token},
+        }
+    }
+    r = requests.post(
+        "https://backboard.railway.app/graphql/v2",
+        json={"query": query, "variables": variables},
+        headers={"Authorization": f"Bearer {RAILWAY_TOKEN}", "Content-Type": "application/json"},
+    )
     if r.status_code == 200:
         print("Railway variable updated!")
     else:
         print(f"Railway update failed: {r.text}")
+
 
 if __name__ == "__main__":
     auto_login()
