@@ -116,6 +116,8 @@ class NSEClient:
             self._ws.subscribe(symbols=self._eq_symbols, data_type="SymbolUpdate")
             self._subscribed.update(self._eq_symbols)
             log.info(f"Subscribed {len(self._eq_symbols)} equity symbols")
+            self._ws.keep_running()
+            log.info("WebSocket keep_running() started")
         except Exception as e:
             log.error(f"WS subscribe error: {e}")
 
