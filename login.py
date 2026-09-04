@@ -44,7 +44,13 @@ def auto_login():
         "appType": "100", "code_challenge": "", "state": "state", "scope": "",
         "nonce": "", "response_type": "code", "create_cookie": True
     }, headers={"Authorization": f"Bearer {access_token}"})
-    auth_code = r4.json()["Url"].split("auth_code=")[1].split("&")[0]
+
+    r4_data = r4.json()
+    if "Url" not in r4_data:
+        print(f"❌ Step 4 response (no 'Url' key): {r4_data}")
+        raise RuntimeError(f"Step 4 failed: {r4_data}")
+
+    auth_code = r4_data["Url"].split("auth_code=")[1].split("&")[0]
     print("Step 4 done")
 
     session = fyersModel.SessionModel(
