@@ -116,12 +116,23 @@ class NSEClient:
             self._ws.subscribe(symbols=self._eq_symbols, data_type="SymbolUpdate")
             self._subscribed.update(self._eq_symbols)
             log.info(f"Subscribed {len(self._eq_symbols)} equity symbols")
+            # CRITICAL: must call keep_running() to start the message processing loop
+            self._ws.keep_running()
+            log.info("WebSocket keep_running() started ✅")
         except Exception as e:
             log.error(f"WS subscribe error: {e}")
 
     def _on_message(self, msg):
         """Handle live tick — update quote or OI store."""
         try:
+            # DEBUG: log first few raw messages to check field names
+            global _debug_msg_count
+            if not hasattr(self, '_debug_count'):
+                self._debug_count = 0
+            if self._debug_count < 5:
+                log.info(f"🔍 DEBUG raw WS message: {msg}")
+                self._debug_count += 1
+
             if not isinstance(msg, dict):
                 return
             sym = msg.get("symbol", "")
